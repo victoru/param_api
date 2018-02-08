@@ -1,4 +1,4 @@
-package main
+package ssm
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
@@ -6,18 +6,20 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 )
 
+var DebugMode bool
+
 type ssmClient struct {
 	client *ssm.SSM
 }
 
-func NewClient(region string) *ssm.SSM {
+func NewClient(region string) *ssmClient {
 	session := session.Must(session.NewSession())
 	if DebugMode {
 		session.Config.WithRegion(region).WithLogLevel(aws.LogDebugWithHTTPBody) //.WithMaxRetries(2)
 	} else {
 		session.Config.WithRegion(region)
 	}
-	return ssm.New(session)
+	return &ssmClient{ssm.New(session)}
 }
 
 func (s ssmClient) ParamList(names ...string) (*ssm.GetParametersOutput, error) {

@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"encoding/base64"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/victoru/param_api/pkg/ssm"
 )
 
 const DEFAULT_ENVIRONMENT = "dev"
@@ -33,18 +34,17 @@ type Response struct {
 type paramRequest map[string]string
 
 func (p paramRequest) valid() bool {
-	fmt.Println(p)
+	if p == nil || len(p) == 0 {
+		return false
+	}
 	return true
 }
 
-func main() {
+func Start() {
 	if env, ok := os.LookupEnv("ENVIRONMENT"); ok {
 		currentEnvironment = env
 	}
-	api()
-}
 
-func api() {
 	router := mux.NewRouter().StrictSlash(true)
 	registerHandlers(router)
 	loggedRouter := handlers.LoggingHandler(os.Stdout, router)
@@ -64,6 +64,7 @@ func api() {
 			DebugMode = false
 		} else {
 			DebugMode = debugenabled
+			ssm.DebugMode = debugenabled
 			log.Printf("debug mode set to %+v", DebugMode)
 		}
 	}
@@ -76,7 +77,7 @@ func registerHandlers(r *mux.Router) {
 	r.HandleFunc("/params", envHandler).Methods("POST")
 }
 
-func parseParamRequestBody(b io.ReadCloser) paramRequest {
+func ParseParamRequestBody(b io.ReadCloser) paramRequest {
 	decoder := json.NewDecoder(b)
 	var p paramRequest
 	err := decoder.Decode(&p)
@@ -88,7 +89,7 @@ func parseParamRequestBody(b io.ReadCloser) paramRequest {
 }
 
 func (p paramRequest) getData() map[string]string {
-	c := ssmClient{NewClient(region)}
+	c := ssm.NewClient(region)
 	var params []string
 
 	for _, v := range p {
@@ -114,7 +115,7 @@ func (p paramRequest) getData() map[string]string {
 
 func envHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("1")
-	p := parseParamRequestBody(r.Body)
+	p := ParseParamRequestBody(r.Body)
 	if !p.valid() {
 		badRequest(w, p)
 		return
